@@ -1,0 +1,93 @@
+Here are the findings for all three items.
+
+1. Full test suite — pass/fail output
+Both packages ran concurrently via pnpm -r --if-present run test:
+
+artifacts/api-server test:  ✓ src/__tests__/routes.validation.test.ts (10 tests) 242ms
+artifacts/api-server test:  ✓ src/__tests__/contextRetrieval.test.ts  (41 tests)  58ms
+artifacts/api-server test:  ✓ src/__tests__/systemPrompt.test.ts      (31 tests)   5ms
+artifacts/api-server test:  Test Files  3 passed (3)
+artifacts/api-server test:       Tests  82 passed (82)
+artifacts/api-server test:    Duration  1.66s
+artifacts/arena-os test:  ✓ src/__tests__/pages/organizer.test.tsx       (5 tests) 211ms
+artifacts/arena-os test:  ✓ src/__tests__/pages/landing.test.tsx         (5 tests) 129ms
+artifacts/arena-os test:  ✓ src/__tests__/components/chat-input.test.tsx (7 tests) 121ms
+artifacts/arena-os test:  ✓ src/__tests__/components/topbar.test.tsx     (6 tests)  96ms
+artifacts/arena-os test:  ✓ src/__tests__/pages/role-selection.test.tsx  (4 tests) 100ms
+artifacts/arena-os test:  ✓ src/__tests__/components/message-bubble.test.tsx (6 tests) 80ms
+artifacts/arena-os test:  ✓ src/__tests__/pages/dashboard.test.tsx       (3 tests)  98ms
+artifacts/arena-os test:  ✓ src/__tests__/pages/not-found.test.tsx       (4 tests)  71ms
+artifacts/arena-os test:  ✓ src/__tests__/components/feature-card.test.tsx (5 tests) 86ms
+artifacts/arena-os test:  ✓ src/__tests__/hooks/useChat.test.ts          (5 tests)  34ms
+artifacts/arena-os test:  ✓ src/__tests__/hooks/use-mobile.test.ts       (3 tests)  15ms
+artifacts/arena-os test:  Test Files  11 passed (11)
+artifacts/arena-os test:       Tests  53 passed (53)
+artifacts/arena-os test:    Duration  10.61s
+
+Total: 135 tests, 14 files, 0 failures.
+
+Two stderr lines appeared — neither is a test failure:
+
+React does not recognize the 'whileInView' prop — in landing.test.tsx. The framer-motion mock replaces motion.div with a plain <div> but passes through all props including motion-specific ones (whileInView, initial, animate). React logs a warning but the test still passes and asserts correctly. The mock works; it's just noisy.
+Chat stream error: Error: Network error — in useChat.test.ts. This is the hook's own console.error call inside the catch block, deliberately triggered by the "recovers gracefully when fetch throws" test case. Expected output.
+2. Context retrieval — filter function and what gets sent
+The filter function is retrieveContext(userMessage, feature) in contextRetrieval.ts. It uses two helpers:
+
+function hasKeyword(message: string, keywords: string[]): boolean {
+  const lower = message.toLowerCase();
+  return keywords.some((k) => lower.includes(k.toLowerCase()));
+}
+function featureIs(feature: string | undefined, ...names: string[]): boolean {
+  if (!feature) return false;
+  const f = feature.toLowerCase();
+  return names.some((n) => f.includes(n.toLowerCase()));
+}
+
+Each data category has two independent triggers — the active UI feature or keywords in the message — so the right context is returned even if the feature flag is wrong:
+
+Category	Feature trigger	Keyword examples
+Emergency	emergency	hurt, medical, fire, evacuate, cardiac …
+Accessibility	accessibility	wheelchair, lift, ramp, disabled …
+Navigation	navigation	gate, section, where, find, direction …
+Food	food, dining	hungry, eat, vegan, halal, gluten …
+Transport	transport	metro, bus, taxi, shuttle, train …
+Sustainability	sustainability	water, refill, recycle …
+Lost & Found	lost	missing, backpack, passport, child …
+Announcements	announce, announcement	(feature-only)
+Fallback	(nothing matched)	Brief stadium summary
+What gets sent to Gemini — raw JSON is never sent. The function maps each data slice to a hand-formatted plain-text string:
+
+// Example — navigation query: "Where is Gate A?"
+// contextBlocks[0].data:
+`STADIUM GATES (current crowd levels):
+- Gate A (North): crowd=low, open=true
+- Gate B (East): crowd=medium, open=true
+- Gate C (South): crowd=high, open=true
+- Gate D (West): crowd=medium, open=true
+- Gate E (South-East): crowd=high, open=false
+STADIUM: Lusail Iconic Stadium, Capacity: 88,966
+Gate layout: Gate A, Gate B, Gate C, Gate D, Gate E`
+
+Fields like id, floor, categories, and other internal properties are deliberately omitted. The formatted strings are collected and passed to buildSystemPrompt as contextBlocks.map((c) => c.data) — the system prompt receives plain text only.
+
+The selection labels are also logged via req.log.info({ labels: contextBlocks.map((c) => c.label) }, "ArenaOS context retrieval selected") for observability without logging the data itself.
+
+3. Stadium data — module-level load, not per-request
+Confirmed. stadiumData.ts declares all data as top-level export const literals:
+
+export const gates = [ { id: 'gate-a', name: 'Gate A', ... }, ... ];
+export const foodCourts = [ ... ];
+export const transportOptions = [ ... ];
+export const accessibilityFeatures = [ ... ];
+export const emergencyPoints = [ ... ];
+export const sustainabilityPoints = [ ... ];
+export const stadium = { name: 'Lusail Iconic Stadium', capacity: 88966, ... };
+
+Both consumers import these at the module level:
+
+// contextRetrieval.ts — top of file
+import { gates, foodCourts, transportOptions, ... } from "./stadiumData.js";
+// organizer.ts — top of file
+import { gates, foodCourts, transportOptions, emergencyPoints } from "../../data/stadiumData.js";
+
+Node's module system evaluates each module exactly once and caches the exports. Every request hits the same already-evaluated objects — no re-reading, no re-parsing, no per-request allocation of the data arrays.
