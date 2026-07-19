@@ -1,49 +1,59 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# ============================================================
+# ArenaOS — .gitignore
+# ============================================================
 
 # compiled output
-dist
-tmp
-out-tsc
+dist/
+tmp/
+out-tsc/
 *.tsbuildinfo
 .expo
 .expo-shared
 
 # dependencies
-node_modules
+node_modules/
 
-# IDEs and editors
-/.idea
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+# environment variables — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+*.env
+.envrc
 
-# IDE - VSCode
+# IDEs
+.idea/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+*.sublime-workspace
+*.sublime-project
 
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
-# System Files
+# system files
 .DS_Store
 Thumbs.db
 
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
+# test coverage
+coverage/
+.nyc_output/
 
-# Replit
+# build artifacts
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Replit platform — internal tooling, not needed in source control
 .cache/
 .local/
+.cursor/
+.github/
+.replit
+.replitignore
+.replitdb/
+
+# Media generated during testing / dev iteration
+*.mp4
+*.mov
+*.webm
+*.gif

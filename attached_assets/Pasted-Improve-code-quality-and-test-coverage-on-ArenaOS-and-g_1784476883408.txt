@@ -1,0 +1,25 @@
+Improve code quality and test coverage on ArenaOS, and get the repository fully organized and ready to push to GitHub. Do NOT change any feature behavior or UI — only the items below.
+
+CODE QUALITY
+1. Add ESLint with a standard TypeScript + React config (@typescript-eslint, eslint-plugin-react-hooks) at the root, with per-workspace configs extending it. Run it and fix all resulting warnings/errors that don't change behavior (unused imports, missing hook dependencies, etc.)
+2. Remove all console.log statements from production code in artifacts/ (outside __tests__ folders) — replace with the existing logger where one exists, or remove entirely if it was leftover debug output
+3. In tsconfig.base.json, enable noUnusedLocals: true and strictFunctionTypes: true, then fix whatever errors surface from turning them on
+4. artifacts/arena-os/src/components/ui/ and artifacts/mockup-sandbox/src/components/ui/ contain duplicated files (sidebar.tsx, chart.tsx, carousel.tsx, menubar.tsx, and likely others in that folder). Move the shared UI components into a shared lib/ui-components package that both artifacts import from, instead of maintaining two copies
+
+TESTING
+5. artifacts/arena-os has zero test files. Add Vitest + React Testing Library and write tests for:
+   - Every custom hook in src/hooks/
+   - Core interactive components: chat-input, message-bubble, feature-card, role-selection, topbar
+   - At least one test per page verifying it renders without crashing and shows expected key elements
+6. In artifacts/api-server/src, review the existing catch blocks outside __tests__ — ensure each one does more than swallow the error silently: log it and return a meaningful error response, not just catch(e) with no action
+7. After adding tests, confirm the full suite still passes and report the new total test count
+
+REPO ORGANIZATION & GIT READINESS
+8. Review the full folder structure (attached_assets/, scripts/, lib/, artifacts/, artifacts/arena-os, artifacts/api-server, artifacts/mockup-sandbox) and clean it up:
+   - Remove any dead/unused files, empty folders, or leftover scaffold files not referenced anywhere
+   - Confirm attached_assets/ only contains files actually used by the app — remove anything orphaned
+   - Ensure consistent naming conventions across folders (no mixed casing, no stray "-copy" or "-old" files)
+9. Add or update a root .gitignore covering node_modules, dist/build output, .env files, .replit-specific cache folders, and any generated video/media files from testing — confirm none of these are currently tracked
+10. Confirm no API keys, secrets, or .env values are hardcoded anywhere in the codebase or committed in any file — this must be fully clean before a public push
+11. Update the root README.md if needed so folder structure described in it matches the actual (post-cleanup) structure
+12. Give me the exact terminal commands to initialize git (if

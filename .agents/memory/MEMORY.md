@@ -1,0 +1,2 @@
+- [ArenaOS architecture decisions](arenaos-architecture.md) — noImplicitReturns already true; Express handlers need res.json(); return; not return res.json()
+- [ArenaOS test patterns](arenaos-test-patterns.md) — framer-motion must be mocked in tests; vi.restoreAllMocks() strips vi.fn() impls; import.meta cast needs double unknown
